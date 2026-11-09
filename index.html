@@ -32,16 +32,15 @@
 
         html {
             scroll-padding-top: env(safe-area-inset-top, 0px);
-            height: 100%;
-            overflow: hidden;
-            overscroll-behavior: none;
+            min-height: 100%;
+            overflow-x: clip;
         }
 
         body {
             margin: 0;
-            height: 100%;
-            overflow: hidden;
-            overscroll-behavior: none;
+            min-height: 100svh;
+            min-height: 100dvh;
+            overflow-x: clip;
             background: radial-gradient(ellipse at 50% 18%, #5a1a26 0%, var(--burgundy) 48%, var(--burgundy-deep) 100%);
             background-attachment: fixed;
             color: var(--cream);
@@ -50,7 +49,7 @@
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            padding: calc(16px + env(safe-area-inset-top, 0px)) 16px calc(16px + env(safe-area-inset-bottom, 0px));
+            padding: max(4px, env(safe-area-inset-top, 0px)) max(4px, env(safe-area-inset-right, 0px)) max(4px, env(safe-area-inset-bottom, 0px)) max(4px, env(safe-area-inset-left, 0px));
             position: relative;
         }
 
@@ -60,13 +59,17 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            gap: 10px;
+            gap: 8px;
             width: 100%;
+            min-height: calc(100svh - max(4px, env(safe-area-inset-top, 0px)) - max(4px, env(safe-area-inset-bottom, 0px)));
+            min-height: calc(100dvh - max(4px, env(safe-area-inset-top, 0px)) - max(4px, env(safe-area-inset-bottom, 0px)));
+            justify-content: center;
         }
 
         .frame {
             position: relative;
-            width: var(--fw, 320px);
+            width: var(--fw, calc(100vw - 8px));
+            flex: none;
             aspect-ratio: 2/3;
             touch-action: none;
             -webkit-user-select: none;
@@ -89,7 +92,7 @@
             inset: 0;
             width: 100%;
             height: 100%;
-            object-fit: cover;
+            object-fit: contain;
             border-radius: 10px;
             -webkit-user-drag: none;
             will-change: transform;
@@ -111,11 +114,13 @@
 
         .hint {
             text-align: center;
-            font-size: .9rem;
+            font-size: .75rem;
+            min-height: 20px;
             letter-spacing: .02em;
             color: var(--gold-soft);
             display: flex;
-            flex-direction: column;
+            flex-direction: row;
+            justify-content: center;
             align-items: center;
             gap: 6px;
             transition: opacity .5s ease;
@@ -176,7 +181,8 @@
             color: var(--gold-soft);
             font-family: Georgia, serif;
             font-size: .85rem;
-            white-space: nowrap;
+            max-width: 100%;
+            text-align: center;
             text-decoration: none;
             letter-spacing: .01em;
             opacity: 0;
@@ -295,14 +301,17 @@
             var closedW = 320, openW = 320;
 
             function sizes() {
-                var vw = window.innerWidth, vh = window.innerHeight;
-                var chromeClosed = 154;   // hint + gaps + padding while closed
-                var chromeOpen = 154;     // guarantees clear space below the card for the map pill
-                var availClosed = Math.max(80, vh - chromeClosed);
-                var availOpen = Math.max(80, vh - chromeOpen);
-                closedW = Math.min(vw * 0.94, availClosed * 0.94 / 1.5, 620);
-                openW = Math.min(vw * 0.98, availOpen * 0.94 / 1.5, 740);
-                if (openW < closedW) openW = closedW;
+                var style = getComputedStyle(document.body);
+                var horizontalPadding = parseFloat(style.paddingLeft) + parseFloat(style.paddingRight);
+                var verticalPadding = parseFloat(style.paddingTop) + parseFloat(style.paddingBottom);
+                var availableWidth = document.documentElement.clientWidth - horizontalPadding;
+                var viewportHeight = window.innerHeight;
+                var controlsHeight = hint.offsetHeight + document.getElementById('mapLink').offsetHeight + 16;
+                var availableHeight = Math.max(80, viewportHeight - verticalPadding - controlsHeight);
+                // Phones use the full available width. Short screens scroll instead of shrinking the text.
+                var mobile = window.matchMedia('(max-width: 600px)').matches;
+                var width = mobile ? availableWidth : Math.min(availableWidth, availableHeight / 1.5);
+                closedW = openW = Math.max(1, width);
                 applyWidth();
             }
             function easeWidth(t) { return t * t * (3 - 2 * t); }
@@ -326,6 +335,11 @@
             }
 
             window.addEventListener('resize', function () { sizes(); render(0); });
+            if (window.visualViewport) {
+                window.visualViewport.addEventListener('resize', function () {
+                    if (window.visualViewport.scale === 1) { sizes(); render(0); }
+                });
+            }
             sizes(); render(0);
 
             function stopSpring() { if (rafId) { cancelAnimationFrame(rafId); rafId = null; } }
@@ -356,7 +370,7 @@
             var hintChev = document.getElementById('hintChev');
 
             function setHint(open) {
-                hintText.textContent = open ? 'Tap or swipe down to close' : 'Tap or swipe up to open';
+                hintText.textContent = open ? 'Tap invitation to close' : 'Tap or swipe up to open';
                 hintChev.textContent = open ? '↓' : '↑';
                 hintChev.classList.toggle('down', open);
             }
@@ -365,6 +379,7 @@
                 setHint(open);
                 hint.classList.remove('hidden');
                 document.body.classList.toggle('opened', open);
+                frame.style.touchAction = open ? 'pan-y pinch-zoom' : 'none';
                 document.getElementById('mapLink').tabIndex = open ? 0 : -1;
             }
 
@@ -378,12 +393,19 @@
                 samples = [{ t: performance.now(), y: e.clientY }];
                 hint.classList.add('hidden');
                 document.body.classList.remove('opened');
-                try { frame.setPointerCapture(e.pointerId); } catch (err) { }
+                if (startP < 0.5) {
+                    try { frame.setPointerCapture(e.pointerId); } catch (err) { }
+                }
             }
 
             function pointerMove(e) {
                 if (!dragging) return;
                 var dy = startY - e.clientY;
+                if (startP > 0.5 && e.pointerType === 'touch' && Math.abs(dy) > 4) {
+                    dragging = false;
+                    finalize(true);
+                    return;
+                }
                 if (Math.abs(dy) > 4) moved = true;
                 var raw = startP + dy / dragRange;
                 // rubber-band resistance beyond the ends
@@ -429,7 +451,14 @@
             frame.addEventListener('pointerdown', pointerDown);
             frame.addEventListener('pointermove', pointerMove, { passive: false });
             window.addEventListener('pointerup', pointerUp);
-            window.addEventListener('pointercancel', pointerUp);
+            window.addEventListener('pointercancel', function () {
+                if (!dragging) return;
+                dragging = false;
+                p = startP > 0.5 ? 1 : 0;
+                v = 0;
+                render(0);
+                finalize(p === 1);
+            });
 
             frame.addEventListener('keydown', function (e) {
                 if (e.key === 'Enter' || e.key === ' ') {
