@@ -2,7 +2,7 @@
 
 An interactive wedding invitation for P. J. Abdul Rahman and Reema.
 
-Open `index.html` in a browser. Tap, swipe up, or press Enter to open the envelope. The location button opens the venue in Google Maps.
+Open `index.html` in a browser. The card gives a gentle initial peek: pull upward from its top edge to slide it out of the envelope, or tap the handle or hint (Enter also works). A short pull returns to the envelope; a longer pull or upward flick finishes opening. Once open, the page scrolls normally. The location button opens the venue in Google Maps.
 
 The page includes its artwork and has no build dependencies. It respects reduced-motion preferences.
 
@@ -13,6 +13,7 @@ Music attempts to start automatically on load. If the browser blocks autoplay, i
 Keep these files together when publishing:
 - `index.html`
 - `invitation-extras.js`
+- `invitation-motion.js`
 - `Wedding Nasheed Muhammad Al Muqit (English Lyrics).mp3`
 
 The user handles all commits, pushes, and publishing.

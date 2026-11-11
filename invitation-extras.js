@@ -38,6 +38,53 @@
 
     if (updateCountdown() > 0) interval = setInterval(updateCountdown, 1000);
 
+    // A short, lightweight celebration on each reveal; never intercept taps or scrolling.
+    var petalLayer = document.createElement('div');
+    petalLayer.className = 'petal-shower';
+    petalLayer.setAttribute('aria-hidden', 'true');
+    document.body.appendChild(petalLayer);
+    var petalCleanup;
+    var reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+
+    function clearPetals() {
+        clearTimeout(petalCleanup);
+        petalLayer.replaceChildren();
+    }
+
+    function showerPetals() {
+        clearPetals();
+        if (document.hidden || reducedMotion.matches) return;
+        var colors = ['#a85d67', '#d6a092', '#e8c9ac', '#8b3b4d'];
+        var count = window.matchMedia('(max-width: 600px)').matches ? 24 : 36;
+        var petals = document.createDocumentFragment();
+        for (var index = 0; index < count; index++) {
+            var petal = document.createElement('span');
+            petal.className = 'falling-petal';
+            petal.style.setProperty('--petal-left', (Math.random() * 100).toFixed(2) + '%');
+            petal.style.setProperty('--petal-size', (6 + Math.random() * 5).toFixed(1) + 'px');
+            petal.style.setProperty('--petal-duration', (4.5 + Math.random() * 2).toFixed(2) + 's');
+            petal.style.setProperty('--petal-delay', (Math.random() * 1.5).toFixed(2) + 's');
+            petal.style.setProperty('--petal-drift', (-65 + Math.random() * 130).toFixed(1) + 'px');
+            petal.style.setProperty('--petal-turn', (-180 + Math.random() * 360).toFixed(1) + 'deg');
+            petal.style.setProperty('--petal-flutter', (1 + Math.random() * 1.3).toFixed(2) + 's');
+            petal.style.setProperty('--petal-color', colors[index % colors.length]);
+            petal.appendChild(document.createElement('i'));
+            petals.appendChild(petal);
+        }
+        petalLayer.appendChild(petals);
+        petalCleanup = setTimeout(clearPetals, 8500);
+    }
+
+    document.addEventListener('invitation:open', showerPetals);
+    document.addEventListener('invitation:close', clearPetals);
+    document.addEventListener('visibilitychange', function () {
+        if (document.hidden) clearPetals();
+    });
+    reducedMotion.addEventListener('change', function () {
+        if (reducedMotion.matches) clearPetals();
+    });
+    window.addEventListener('pagehide', clearPetals);
+
     var audio = document.getElementById('invitationMusic');
     var pending = false;
     var request = 0;
